@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Transcription</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        #transcript {
+            width: 100%;
+            height: 300px;
+            margin-bottom: 10px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Real-time Transcription</h1>
+
+    <div id="transcript">No transcript received yet...</div>
+
+    <script>
+        // Create a WebSocket connection to the FastAPI WebSocket endpoint
+        const socket = new WebSocket("wss://13.201.42.149/ws");
+        
+        const transcriptArea = document.getElementById("transcript");
+        let firstMessageReceived = false; // Flag to check if first message arrived
+    
+        // When a message is received from the WebSocket server
+        socket.onmessage = function(event) {
+            const message = event.data;
+            console.log("Message received from server:", message);
+    
+            if (!firstMessageReceived) {
+                transcriptArea.textContent = ""; // Clear the initial message
+                firstMessageReceived = true; // Mark that first message is received
+            }
+    
+            // Append the received transcript to the transcript area
+            transcriptArea.textContent += `\n${message}`;
+        };
+    
+        // WebSocket onopen event
+        socket.onopen = function() {
+            console.log("WebSocket connection established.");
+        };
+    
+        // WebSocket onclose event
+        socket.onclose = function(event) {
+            if (event.wasClean) {
+                console.log("Connection closed cleanly.");
+            } else {
+                console.error("Connection interrupted.");
+            }
+        };
+    
+        // WebSocket onerror event
+        socket.onerror = function(error) {
+            console.error("WebSocket error:", error);
+        };
+    </script>
+    
+</body>
+</html>
