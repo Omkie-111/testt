@@ -19,7 +19,7 @@ app.add_middleware(
 # Serve static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 # Serve verification file statically
-app.mount("/.well-known", StaticFiles(directory=".well-known"), name="well-known")
+# app.mount("/.well-known", StaticFiles(directory=".well-known"), name="well-known")
 
 # Store connected clients
 connected_clients = set()
@@ -30,10 +30,10 @@ async def get_transcript():
     with open("static/index.html") as f:
         return HTMLResponse(content=f.read())
     
-@app.get("/.well-known/pki-validation/4E1F5DA990AE45630EE32486534FB035.txt")
-async def serve_auth_file():
-    """Serve the SSL verification file."""
-    return FileResponse(".well-known/pki-validation/4E1F5DA990AE45630EE32486534FB035.txt")
+# @app.get("/.well-known/pki-validation/4E1F5DA990AE45630EE32486534FB035.txt")
+# async def serve_auth_file():
+#     """Serve the SSL verification file."""
+#     return FileResponse(".well-known/pki-validation/4E1F5DA990AE45630EE32486534FB035.txt")
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
