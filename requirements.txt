@@ -3,3 +3,4 @@ uvicorn
 websockets 
 requests
 pydub
+deepgram-sdk
