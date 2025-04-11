@@ -1,39 +1,62 @@
-# from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-# from fastapi.responses import HTMLResponse, FileResponse
-# from fastapi.middleware.cors import CORSMiddleware
-# from fastapi.staticfiles import StaticFiles
-# import uvicorn
-# import asyncio
+# # from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+# # from fastapi.responses import HTMLResponse, FileResponse
+# # from fastapi.middleware.cors import CORSMiddleware
+# # from fastapi.staticfiles import StaticFiles
+# # import uvicorn
+# # import asyncio
 
-# app = FastAPI()
+# # app = FastAPI()
 
-# # Allow CORS
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"],
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
+# # # Allow CORS
+# # app.add_middleware(
+# #     CORSMiddleware,
+# #     allow_origins=["*"],
+# #     allow_credentials=True,
+# #     allow_methods=["*"],
+# #     allow_headers=["*"],
+# # )
 
-# # Serve static files
-# app.mount("/static", StaticFiles(directory="static"), name="static")
-# # Serve verification file statically
-# # app.mount("/.well-known", StaticFiles(directory=".well-known"), name="well-known")
+# # # Serve static files
+# # app.mount("/static", StaticFiles(directory="static"), name="static")
+# # # Serve verification file statically
+# # # app.mount("/.well-known", StaticFiles(directory=".well-known"), name="well-known")
 
-# # Store connected clients
-# connected_clients = set()
+# # # Store connected clients
+# # connected_clients = set()
 
-# @app.get("/", response_class=HTMLResponse)
-# async def get_transcript():
-#     """Serve the HTML page on the root endpoint."""
-#     with open("static/index.html") as f:
-#         return HTMLResponse(content=f.read())
+# # @app.get("/", response_class=HTMLResponse)
+# # async def get_transcript():
+# #     """Serve the HTML page on the root endpoint."""
+# #     with open("static/index.html") as f:
+# #         return HTMLResponse(content=f.read())
     
-# # @app.get("/.well-known/pki-validation/4E1F5DA990AE45630EE32486534FB035.txt")
-# # async def serve_auth_file():
-# #     """Serve the SSL verification file."""
-# #     return FileResponse(".well-known/pki-validation/4E1F5DA990AE45630EE32486534FB035.txt")
+# # # @app.get("/.well-known/pki-validation/4E1F5DA990AE45630EE32486534FB035.txt")
+# # # async def serve_auth_file():
+# # #     """Serve the SSL verification file."""
+# # #     return FileResponse(".well-known/pki-validation/4E1F5DA990AE45630EE32486534FB035.txt")
+
+# # # @app.websocket("/ws")
+# # # async def websocket_endpoint(websocket: WebSocket):
+# # #     """WebSocket endpoint for frontend clients to receive real-time transcriptions."""
+# # #     await websocket.accept()
+# # #     connected_clients.add(websocket)
+# # #     print("New frontend client connected")
+
+# # #     try:
+# # #         while True:
+# # #             data = await websocket.receive_text()
+# # #             print(f"Received message: {data}")
+
+# # #             # **Don't send the message back to sender (db.py script)**
+
+# # #             # **Broadcast transcription to all connected frontend clients**
+# # #             for client in connected_clients:
+# # #                 if client != websocket:  # Ensure we don't send back to sender
+# # #                     await client.send_text(data)
+
+# # #     except WebSocketDisconnect:
+# # #         print("Frontend client disconnected")
+# # #         connected_clients.remove(websocket)
 
 # # @app.websocket("/ws")
 # # async def websocket_endpoint(websocket: WebSocket):
@@ -44,50 +67,133 @@
 
 # #     try:
 # #         while True:
-# #             data = await websocket.receive_text()
-# #             print(f"Received message: {data}")
+# #             message = await websocket.receive()
 
-# #             # **Don't send the message back to sender (db.py script)**
+# #             # Handle text messages
+# #             if "text" in message:
+# #                 text_data = message["text"]
+# #                 print(f"Received text message: {text_data}")
 
-# #             # **Broadcast transcription to all connected frontend clients**
-# #             for client in connected_clients:
-# #                 if client != websocket:  # Ensure we don't send back to sender
-# #                     await client.send_text(data)
+# #                 # Broadcast to all other clients
+# #                 for client in connected_clients:
+# #                     if client != websocket:
+# #                         await client.send_text(text_data)
+
+# #             # Handle binary (audio) messages
+# #             elif "bytes" in message:
+# #                 bytes_data = message["bytes"]
+# #                 print(f"Received binary audio data: {len(bytes_data)} bytes")
+
+# #                 # (Optional) broadcast audio to other clients
+# #                 # for client in connected_clients:
+# #                 #     if client != websocket:
+# #                 #         await client.send_bytes(bytes_data)
 
 # #     except WebSocketDisconnect:
 # #         print("Frontend client disconnected")
 # #         connected_clients.remove(websocket)
 
+# # if __name__ == "__main__":
+# #     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+# from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+# from fastapi.responses import HTMLResponse, FileResponse
+# from fastapi.middleware.cors import CORSMiddleware
+# from fastapi.staticfiles import StaticFiles
+# import uvicorn
+# import os
+# import uuid
+
+# app = FastAPI()
+
+# # CORS setup
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"],
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+
+# # Static file hosting
+# app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# # In-memory client tracking
+# connected_clients = set()
+
+# # Constants
+# TRANSCRIPT_DIR = "transcripts"
+# os.makedirs(TRANSCRIPT_DIR, exist_ok=True)
+# CHUNK_DURATION_SECONDS = 120  # 2 minutes
+# BYTES_PER_SECOND = 32000      # Adjust based on your actual audio bitrate
+
+# @app.get("/", response_class=HTMLResponse)
+# async def get_transcript():
+#     """Serve the frontend HTML page."""
+#     with open("static/index.html") as f:
+#         return HTMLResponse(content=f.read())
+
+# @app.get("/download/{filename}")
+# async def download_transcript(filename: str):
+#     """Provide a downloadable transcript file."""
+#     file_path = os.path.join(TRANSCRIPT_DIR, filename)
+#     if os.path.exists(file_path):
+#         return FileResponse(file_path, media_type="text/plain", filename=filename)
+#     return {"error": "File not found"}
+
 # @app.websocket("/ws")
 # async def websocket_endpoint(websocket: WebSocket):
-#     """WebSocket endpoint for frontend clients to receive real-time transcriptions."""
+#     """WebSocket endpoint for streaming transcriptions and audio."""
 #     await websocket.accept()
 #     connected_clients.add(websocket)
 #     print("New frontend client connected")
+
+#     transcript_buffer = ""
+#     audio_byte_counter = 0
+#     chunk_index = 1
+#     session_id = str(uuid.uuid4())
 
 #     try:
 #         while True:
 #             message = await websocket.receive()
 
-#             # Handle text messages
+#             # Handle text messages (transcripts)
 #             if "text" in message:
 #                 text_data = message["text"]
 #                 print(f"Received text message: {text_data}")
+#                 transcript_buffer += text_data.strip() + "\n"
 
-#                 # Broadcast to all other clients
+#                 # Broadcast to other clients (not the sender)
 #                 for client in connected_clients:
 #                     if client != websocket:
 #                         await client.send_text(text_data)
 
-#             # Handle binary (audio) messages
+#             # Handle binary audio data
 #             elif "bytes" in message:
 #                 bytes_data = message["bytes"]
+#                 audio_byte_counter += len(bytes_data)
 #                 print(f"Received binary audio data: {len(bytes_data)} bytes")
 
-#                 # (Optional) broadcast audio to other clients
-#                 # for client in connected_clients:
-#                 #     if client != websocket:
-#                 #         await client.send_bytes(bytes_data)
+#                 # Save transcript every ~2 minutes of audio
+#                 if audio_byte_counter >= BYTES_PER_SECOND * CHUNK_DURATION_SECONDS:
+#                     filename = f"transcript_{session_id}_{chunk_index}.txt"
+#                     filepath = os.path.join(TRANSCRIPT_DIR, filename)
+
+#                     with open(filepath, "w") as f:
+#                         f.write(transcript_buffer)
+
+#                     print(f"Saved transcript: {filepath}")
+
+#                     # Notify frontend with a download link
+#                     download_link = f"/download/{filename}"
+#                     for client in connected_clients:
+#                         await client.send_text(f"[Transcript ready] {download_link}")
+
+#                     # Reset for next chunk
+#                     transcript_buffer = ""
+#                     audio_byte_counter = 0
+#                     chunk_index += 1
 
 #     except WebSocketDisconnect:
 #         print("Frontend client disconnected")
@@ -96,14 +202,14 @@
 # if __name__ == "__main__":
 #     uvicorn.run(app, host="0.0.0.0", port=8000)
 
-
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import uvicorn
+import websockets
+import json
 import os
-import uuid
 
 app = FastAPI()
 
@@ -119,85 +225,69 @@ app.add_middleware(
 # Static file hosting
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# In-memory client tracking
+# WebSocket client tracking
 connected_clients = set()
 
-# Constants
-TRANSCRIPT_DIR = "transcripts"
-os.makedirs(TRANSCRIPT_DIR, exist_ok=True)
-CHUNK_DURATION_SECONDS = 120  # 2 minutes
-BYTES_PER_SECOND = 32000      # Adjust based on your actual audio bitrate
+# Deepgram configuration
+DEEPGRAM_API_KEY = "865b5ebcf07b1b140f283a82b830ba0120c408c3"
+DEEPGRAM_URL = "wss://api.deepgram.com/v1/listen"
+DEEPGRAM_PARAMS = {
+    "model": "nova-2",
+    "language": "hi",
+    "punctuate": "true",
+    "smart_format": "true",
+    "diarize": "true",
+    "encoding": "linear16",
+    "sample_rate": 16000
+}
 
 @app.get("/", response_class=HTMLResponse)
-async def get_transcript():
-    """Serve the frontend HTML page."""
+async def get_index():
+    """Serve the frontend HTML page"""
     with open("static/index.html") as f:
         return HTMLResponse(content=f.read())
 
-@app.get("/download/{filename}")
-async def download_transcript(filename: str):
-    """Provide a downloadable transcript file."""
-    file_path = os.path.join(TRANSCRIPT_DIR, filename)
-    if os.path.exists(file_path):
-        return FileResponse(file_path, media_type="text/plain", filename=filename)
-    return {"error": "File not found"}
-
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for streaming transcriptions and audio."""
+    """Handle real-time audio transcription through Deepgram"""
     await websocket.accept()
     connected_clients.add(websocket)
-    print("New frontend client connected")
+    print("New client connected")
 
-    transcript_buffer = ""
-    audio_byte_counter = 0
-    chunk_index = 1
-    session_id = str(uuid.uuid4())
+    # Connect to Deepgram
+    query = "&".join([f"{k}={v}" for k, v in DEEPGRAM_PARAMS.items()])
+    deepgram_ws_url = f"{DEEPGRAM_URL}?{query}"
+    headers = {"Authorization": f"Token {DEEPGRAM_API_KEY}"}
 
     try:
-        while True:
-            message = await websocket.receive()
+        async with websockets.connect(deepgram_ws_url, extra_headers=headers) as dg_ws:
+            # Task to forward audio from client to Deepgram
+            async def forward_audio():
+                try:
+                    while True:
+                        audio_data = await websocket.receive_bytes()
+                        await dg_ws.send(audio_data)
+                except WebSocketDisconnect:
+                    print("Client disconnected")
 
-            # Handle text messages (transcripts)
-            if "text" in message:
-                text_data = message["text"]
-                print(f"Received text message: {text_data}")
-                transcript_buffer += text_data.strip() + "\n"
+            # Task to forward transcriptions from Deepgram to client
+            async def forward_transcriptions():
+                try:
+                    async for message in dg_ws:
+                        data = json.loads(message)
+                        transcript = data.get('channel', {}).get('alternatives', [{}])[0].get('transcript', '')
+                        if transcript:
+                            await websocket.send_text(transcript)
+                except Exception as e:
+                    print(f"Deepgram error: {e}")
 
-                # Broadcast to other clients (not the sender)
-                for client in connected_clients:
-                    if client != websocket:
-                        await client.send_text(text_data)
+            await asyncio.gather(forward_audio(), forward_transcriptions())
 
-            # Handle binary audio data
-            elif "bytes" in message:
-                bytes_data = message["bytes"]
-                audio_byte_counter += len(bytes_data)
-                print(f"Received binary audio data: {len(bytes_data)} bytes")
-
-                # Save transcript every ~2 minutes of audio
-                if audio_byte_counter >= BYTES_PER_SECOND * CHUNK_DURATION_SECONDS:
-                    filename = f"transcript_{session_id}_{chunk_index}.txt"
-                    filepath = os.path.join(TRANSCRIPT_DIR, filename)
-
-                    with open(filepath, "w") as f:
-                        f.write(transcript_buffer)
-
-                    print(f"Saved transcript: {filepath}")
-
-                    # Notify frontend with a download link
-                    download_link = f"/download/{filename}"
-                    for client in connected_clients:
-                        await client.send_text(f"[Transcript ready] {download_link}")
-
-                    # Reset for next chunk
-                    transcript_buffer = ""
-                    audio_byte_counter = 0
-                    chunk_index += 1
-
-    except WebSocketDisconnect:
-        print("Frontend client disconnected")
+    except Exception as e:
+        print(f"Deepgram connection failed: {e}")
+    finally:
         connected_clients.remove(websocket)
+        await websocket.close()
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
