@@ -35,6 +35,29 @@ async def get_transcript():
 #     """Serve the SSL verification file."""
 #     return FileResponse(".well-known/pki-validation/4E1F5DA990AE45630EE32486534FB035.txt")
 
+# @app.websocket("/ws")
+# async def websocket_endpoint(websocket: WebSocket):
+#     """WebSocket endpoint for frontend clients to receive real-time transcriptions."""
+#     await websocket.accept()
+#     connected_clients.add(websocket)
+#     print("New frontend client connected")
+
+#     try:
+#         while True:
+#             data = await websocket.receive_text()
+#             print(f"Received message: {data}")
+
+#             # **Don't send the message back to sender (db.py script)**
+
+#             # **Broadcast transcription to all connected frontend clients**
+#             for client in connected_clients:
+#                 if client != websocket:  # Ensure we don't send back to sender
+#                     await client.send_text(data)
+
+#     except WebSocketDisconnect:
+#         print("Frontend client disconnected")
+#         connected_clients.remove(websocket)
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for frontend clients to receive real-time transcriptions."""
@@ -44,15 +67,27 @@ async def websocket_endpoint(websocket: WebSocket):
 
     try:
         while True:
-            data = await websocket.receive_text()
-            print(f"Received message: {data}")
+            message = await websocket.receive()
 
-            # **Don't send the message back to sender (db.py script)**
+            # Handle text messages
+            if "text" in message:
+                text_data = message["text"]
+                print(f"Received text message: {text_data}")
 
-            # **Broadcast transcription to all connected frontend clients**
-            for client in connected_clients:
-                if client != websocket:  # Ensure we don't send back to sender
-                    await client.send_text(data)
+                # Broadcast to all other clients
+                for client in connected_clients:
+                    if client != websocket:
+                        await client.send_text(text_data)
+
+            # Handle binary (audio) messages
+            elif "bytes" in message:
+                bytes_data = message["bytes"]
+                print(f"Received binary audio data: {len(bytes_data)} bytes")
+
+                # (Optional) broadcast audio to other clients
+                # for client in connected_clients:
+                #     if client != websocket:
+                #         await client.send_bytes(bytes_data)
 
     except WebSocketDisconnect:
         print("Frontend client disconnected")
