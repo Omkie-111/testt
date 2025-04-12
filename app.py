@@ -289,5 +289,56 @@ async def websocket_endpoint(websocket: WebSocket):
         connected_clients.remove(websocket)
         await websocket.close()
 
+@app.get("/report")
+async def get_report():
+    current_time = datetime.datetime.utcnow().isoformat() + "Z"
+    sample_report = {
+        "call_id": "call_12345",
+        "agent_id": "agent_001",
+        "customer_id": "customer_789",
+        "start_time": current_time,
+        "end_time": current_time,
+        "category_reports": {
+            "introduction": {
+                "title": "Introduction & Setup",
+                "subcategories": {
+                    "greeting": {
+                        "title": "Executive Greeting & Context Setting",
+                        "entries": [
+                            {
+                                "timestamp": current_time,
+                                "value": "Yes",
+                                "reason": "Proper greeting and context provided.",
+                                "sentence": [
+                                    "Good morning, this is John from XYZ Corp."
+                                ],
+                                "score": 5,
+                                "nudges": "Greeting\nEnsure you introduce yourself clearly.\nSmile while talking."
+                            }
+                        ],
+                        "final_summary": {
+                            "value": "Yes",
+                            "reason": "Complete greeting done.",
+                            "sentence": [
+                                "Good morning, this is John from XYZ Corp."
+                            ],
+                            "total_score": 5,
+                            "nudges": "Final Greeting Tips\nMaintain politeness throughout the call."
+                        }
+                    }
+                },
+                "final_category_score": 5
+            }
+        },
+        "overall_summary": {
+            "total_score": 5,
+            "max_score": 5,
+            "percentage_score": "100%",
+            "remarks": "Excellent call performance."
+        }
+    }
+
+    return JSONResponse(content=sample_report)
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
