@@ -377,25 +377,21 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, RootModel
 from typing import Any, Dict
-
-app = FastAPI()
-
-# In-memory stores
-report_store = {}
-status_store = {}
-
-# Use RootModel for the dynamic report data
-class ReportModel(RootModel[Dict[str, Any]]):
-    pass
-
-class StatusModel(BaseModel):
-    status: str
-
 import os
 import json
 
+app = FastAPI()
+
 report_file = "report.json"
 status_file = "status.json"
+
+# Support arbitrary nested structure for report
+class ReportModel(RootModel[Dict[str, Any]]):
+    pass
+
+# Status model with a single string field
+class StatusModel(BaseModel):
+    status: str
 
 @app.get("/report")
 async def get_report():
@@ -424,6 +420,7 @@ async def set_status(status: StatusModel):
     with open(status_file, "w", encoding="utf-8") as f:
         json.dump({"status": status.status}, f, ensure_ascii=False, indent=2)
     return {"message": "Status updated successfully"}
+
 
 
 
