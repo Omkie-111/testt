@@ -212,6 +212,7 @@ import websockets
 import json
 import os
 import datetime
+import uuid
 
 app = FastAPI()
 
