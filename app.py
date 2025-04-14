@@ -375,9 +375,8 @@
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
-from typing import Any
-import datetime
+from pydantic import BaseModel, RootModel
+from typing import Any, Dict
 
 app = FastAPI()
 
@@ -385,9 +384,9 @@ app = FastAPI()
 report_store = {}
 status_store = {}
 
-# Pydantic models
-class ReportModel(BaseModel):
-    __root__: dict[str, Any]
+# Use RootModel for the dynamic report data
+class ReportModel(RootModel[Dict[str, Any]]):
+    pass
 
 class StatusModel(BaseModel):
     status: str
@@ -402,7 +401,7 @@ async def get_report():
 @app.post("/report")
 async def set_report(report: ReportModel):
     report_store.clear()
-    report_store.update(report.__root__)
+    report_store.update(report.root)
     return {"message": "Report saved successfully"}
 
 # Status endpoints
@@ -416,6 +415,7 @@ async def get_status():
 async def set_status(status: StatusModel):
     status_store["status"] = status.status
     return {"message": "Status updated successfully"}
+
 
 
 if __name__ == "__main__":
