@@ -251,45 +251,75 @@ async def get_index():
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """Handle real-time audio transcription through Deepgram"""
+    """WebSocket endpoint for streaming transcriptions and audio."""
     await websocket.accept()
     connected_clients.add(websocket)
-    print("New client connected")
+    print("New frontend client connected")
 
-    # Connect to Deepgram
-    query = "&".join([f"{k}={v}" for k, v in DEEPGRAM_PARAMS.items()])
-    deepgram_ws_url = f"{DEEPGRAM_URL}?{query}"
-    headers = {"Authorization": f"Token {DEEPGRAM_API_KEY}"}
+    transcript_buffer = ""
+    audio_byte_counter = 0
+    chunk_index = 1
+    session_id = str(uuid.uuid4())
 
     try:
-        async with websockets.connect(deepgram_ws_url, extra_headers=headers) as dg_ws:
-            # Task to forward audio from client to Deepgram
-            async def forward_audio():
-                try:
-                    while True:
-                        audio_data = await websocket.receive_bytes()
-                        await dg_ws.send(audio_data)
-                except WebSocketDisconnect:
-                    print("Client disconnected")
+        while True:
+            try:
+                message = await websocket.receive()
 
-            # Task to forward transcriptions from Deepgram to client
-            async def forward_transcriptions():
-                try:
-                    async for message in dg_ws:
-                        data = json.loads(message)
-                        transcript = data.get('channel', {}).get('alternatives', [{}])[0].get('transcript', '')
-                        if transcript:
-                            await websocket.send_text(transcript)
-                except Exception as e:
-                    print(f"Deepgram error: {e}")
+                # Handle text messages (transcripts)
+                if "text" in message:
+                    text_data = message["text"]
+                    print(f"Received text message: {text_data}")
+                    transcript_buffer += text_data.strip() + "\n"
 
-            await asyncio.gather(forward_audio(), forward_transcriptions())
+                    # Broadcast to other clients (not the sender)
+                    for client in connected_clients:
+                        if client != websocket:
+                            await client.send_text(text_data)
+
+                # Handle binary audio data
+                elif "bytes" in message:
+                    bytes_data = message["bytes"]
+                    audio_byte_counter += len(bytes_data)
+                    print(f"Received binary audio data: {len(bytes_data)} bytes")
+
+                    # Save transcript every ~2 minutes of audio
+                    if audio_byte_counter >= BYTES_PER_SECOND * CHUNK_DURATION_SECONDS:
+                        filename = f"transcript_{session_id}_{chunk_index}.txt"
+                        filepath = os.path.join(TRANSCRIPT_DIR, filename)
+
+                        with open(filepath, "w") as f:
+                            f.write(transcript_buffer)
+
+                        print(f"Saved transcript: {filepath}")
+
+                        # Notify frontend with a download link
+                        download_link = f"/download/{filename}"
+                        for client in connected_clients:
+                            await client.send_text(f"[Transcript ready] {download_link}")
+
+                        # Reset for next chunk
+                        transcript_buffer = ""
+                        audio_byte_counter = 0
+                        chunk_index += 1
+
+            except WebSocketDisconnect:
+                print("Frontend client disconnected inside loop")
+                if websocket.application_state != WebSocketState.DISCONNECTED:
+                    await websocket.send_json({"status": "Disconnected"})
+                connected_clients.remove(websocket)
+                break  # Exit the receive loop
+
+            except Exception as e:
+                print(f"Exception in websocket receive loop: {e}")
+                if websocket.application_state != WebSocketState.DISCONNECTED:
+                    await websocket.send_json({"status": "Disconnected"})
+                connected_clients.remove(websocket)
+                break  # Exit the receive loop
 
     except Exception as e:
-        print(f"Deepgram connection failed: {e}")
-    finally:
-        connected_clients.remove(websocket)
-        await websocket.close()
+        print(f"Outer exception in websocket endpoint: {e}")
+
 
 @app.get("/report")
 async def get_report():
