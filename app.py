@@ -381,13 +381,18 @@ import datetime
 
 app = FastAPI()
 
-# In-memory store for the report
+# In-memory stores
 report_store = {}
+status_store = {}
 
-# Pydantic model to validate incoming report structure
+# Pydantic models
 class ReportModel(BaseModel):
     __root__: dict[str, Any]
 
+class StatusModel(BaseModel):
+    status: str
+
+# Report endpoints
 @app.get("/report")
 async def get_report():
     if not report_store:
@@ -399,6 +404,18 @@ async def set_report(report: ReportModel):
     report_store.clear()
     report_store.update(report.__root__)
     return {"message": "Report saved successfully"}
+
+# Status endpoints
+@app.get("/status")
+async def get_status():
+    if "status" not in status_store:
+        raise HTTPException(status_code=404, detail="Status not found")
+    return JSONResponse(content=status_store)
+
+@app.post("/status")
+async def set_status(status: StatusModel):
+    status_store["status"] = status.status
+    return {"message": "Status updated successfully"}
 
 
 if __name__ == "__main__":
