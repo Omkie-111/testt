@@ -202,176 +202,204 @@
 # if __name__ == "__main__":
 #     uvicorn.run(app, host="0.0.0.0", port=8000)
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+# from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+# from fastapi.responses import JSONResponse
+# from fastapi.responses import HTMLResponse
+# from fastapi.middleware.cors import CORSMiddleware
+# from fastapi.staticfiles import StaticFiles
+# import uvicorn
+# import websockets
+# import json
+# import os
+# import datetime
+# import uuid
+
+# app = FastAPI()
+
+# # CORS setup
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"],
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+
+# # Static file hosting
+# app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# # WebSocket client tracking
+# connected_clients = set()
+
+# # Deepgram configuration
+# DEEPGRAM_API_KEY = "865b5ebcf07b1b140f283a82b830ba0120c408c3"
+# DEEPGRAM_URL = "wss://api.deepgram.com/v1/listen"
+# DEEPGRAM_PARAMS = {
+#     "model": "nova-2",
+#     "language": "hi",
+#     "punctuate": "true",
+#     "smart_format": "true",
+#     "diarize": "true",
+#     "encoding": "linear16",
+#     "sample_rate": 16000
+# }
+
+# @app.get("/", response_class=HTMLResponse)
+# async def get_index():
+#     """Serve the frontend HTML page"""
+#     with open("static/index.html") as f:
+#         return HTMLResponse(content=f.read())
+
+# @app.websocket("/ws")
+# async def websocket_endpoint(websocket: WebSocket):
+#     """WebSocket endpoint for streaming transcriptions and audio."""
+#     await websocket.accept()
+#     connected_clients.add(websocket)
+#     print("New frontend client connected")
+
+#     transcript_buffer = ""
+#     audio_byte_counter = 0
+#     chunk_index = 1
+#     session_id = str(uuid.uuid4())
+
+#     try:
+#         while True:
+#             try:
+#                 message = await websocket.receive()
+
+#                 # Handle text messages (transcripts)
+#                 if "text" in message:
+#                     text_data = message["text"]
+#                     print(f"Received text message: {text_data}")
+#                     transcript_buffer += text_data.strip() + "\n"
+
+#                     # Broadcast to other clients (not the sender)
+#                     for client in connected_clients:
+#                         if client != websocket:
+#                             await client.send_text(text_data)
+
+#                 # Handle binary audio data
+#                 elif "bytes" in message:
+#                     bytes_data = message["bytes"]
+#                     audio_byte_counter += len(bytes_data)
+#                     print(f"Received binary audio data: {len(bytes_data)} bytes")
+
+#                     # Save transcript every ~2 minutes of audio
+#                     if audio_byte_counter >= BYTES_PER_SECOND * CHUNK_DURATION_SECONDS:
+#                         filename = f"transcript_{session_id}_{chunk_index}.txt"
+#                         filepath = os.path.join(TRANSCRIPT_DIR, filename)
+
+#                         with open(filepath, "w") as f:
+#                             f.write(transcript_buffer)
+
+#                         print(f"Saved transcript: {filepath}")
+
+#                         # Notify frontend with a download link
+#                         download_link = f"/download/{filename}"
+#                         for client in connected_clients:
+#                             await client.send_text(f"[Transcript ready] {download_link}")
+
+#                         # Reset for next chunk
+#                         transcript_buffer = ""
+#                         audio_byte_counter = 0
+#                         chunk_index += 1
+
+#             except WebSocketDisconnect:
+#                 print("Frontend client disconnected inside loop")
+#                 if websocket.application_state != WebSocketState.DISCONNECTED:
+#                     await websocket.send_json({"status": "Disconnected"})
+#                 connected_clients.remove(websocket)
+#                 break  # Exit the receive loop
+
+#             except Exception as e:
+#                 print(f"Exception in websocket receive loop: {e}")
+#                 if websocket.application_state != WebSocketState.DISCONNECTED:
+#                     await websocket.send_json({"status": "Disconnected"})
+#                 connected_clients.remove(websocket)
+#                 break  # Exit the receive loop
+
+#     except Exception as e:
+#         print(f"Outer exception in websocket endpoint: {e}")
+
+
+# @app.get("/report")
+# async def get_report():
+#     current_time = datetime.datetime.utcnow().isoformat() + "Z"
+#     sample_report = {
+#         "call_id": "call_12345",
+#         "agent_id": "agent_001",
+#         "customer_id": "customer_789",
+#         "start_time": current_time,
+#         "end_time": current_time,
+#         "category_reports": {
+#             "introduction": {
+#                 "title": "Introduction & Setup",
+#                 "subcategories": {
+#                     "greeting": {
+#                         "title": "Executive Greeting & Context Setting",
+#                         "entries": [
+#                             {
+#                                 "timestamp": current_time,
+#                                 "value": "Yes",
+#                                 "reason": "Proper greeting and context provided.",
+#                                 "sentence": [
+#                                     "Good morning, this is John from XYZ Corp."
+#                                 ],
+#                                 "score": 5,
+#                                 "nudges": "Greeting\nEnsure you introduce yourself clearly.\nSmile while talking."
+#                             }
+#                         ],
+#                         "final_summary": {
+#                             "value": "Yes",
+#                             "reason": "Complete greeting done.",
+#                             "sentence": [
+#                                 "Good morning, this is John from XYZ Corp."
+#                             ],
+#                             "total_score": 5,
+#                             "nudges": "Final Greeting Tips\nMaintain politeness throughout the call."
+#                         }
+#                     }
+#                 },
+#                 "final_category_score": 5
+#             }
+#         },
+#         "overall_summary": {
+#             "total_score": 5,
+#             "max_score": 5,
+#             "percentage_score": "100%",
+#             "remarks": "Excellent call performance."
+#         }
+#     }
+
+#     return JSONResponse(content=sample_report)
+
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
-from fastapi.responses import HTMLResponse
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-import uvicorn
-import websockets
-import json
-import os
+from pydantic import BaseModel
+from typing import Any
 import datetime
-import uuid
 
 app = FastAPI()
 
-# CORS setup
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# In-memory store for the report
+report_store = {}
 
-# Static file hosting
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-# WebSocket client tracking
-connected_clients = set()
-
-# Deepgram configuration
-DEEPGRAM_API_KEY = "865b5ebcf07b1b140f283a82b830ba0120c408c3"
-DEEPGRAM_URL = "wss://api.deepgram.com/v1/listen"
-DEEPGRAM_PARAMS = {
-    "model": "nova-2",
-    "language": "hi",
-    "punctuate": "true",
-    "smart_format": "true",
-    "diarize": "true",
-    "encoding": "linear16",
-    "sample_rate": 16000
-}
-
-@app.get("/", response_class=HTMLResponse)
-async def get_index():
-    """Serve the frontend HTML page"""
-    with open("static/index.html") as f:
-        return HTMLResponse(content=f.read())
-
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for streaming transcriptions and audio."""
-    await websocket.accept()
-    connected_clients.add(websocket)
-    print("New frontend client connected")
-
-    transcript_buffer = ""
-    audio_byte_counter = 0
-    chunk_index = 1
-    session_id = str(uuid.uuid4())
-
-    try:
-        while True:
-            try:
-                message = await websocket.receive()
-
-                # Handle text messages (transcripts)
-                if "text" in message:
-                    text_data = message["text"]
-                    print(f"Received text message: {text_data}")
-                    transcript_buffer += text_data.strip() + "\n"
-
-                    # Broadcast to other clients (not the sender)
-                    for client in connected_clients:
-                        if client != websocket:
-                            await client.send_text(text_data)
-
-                # Handle binary audio data
-                elif "bytes" in message:
-                    bytes_data = message["bytes"]
-                    audio_byte_counter += len(bytes_data)
-                    print(f"Received binary audio data: {len(bytes_data)} bytes")
-
-                    # Save transcript every ~2 minutes of audio
-                    if audio_byte_counter >= BYTES_PER_SECOND * CHUNK_DURATION_SECONDS:
-                        filename = f"transcript_{session_id}_{chunk_index}.txt"
-                        filepath = os.path.join(TRANSCRIPT_DIR, filename)
-
-                        with open(filepath, "w") as f:
-                            f.write(transcript_buffer)
-
-                        print(f"Saved transcript: {filepath}")
-
-                        # Notify frontend with a download link
-                        download_link = f"/download/{filename}"
-                        for client in connected_clients:
-                            await client.send_text(f"[Transcript ready] {download_link}")
-
-                        # Reset for next chunk
-                        transcript_buffer = ""
-                        audio_byte_counter = 0
-                        chunk_index += 1
-
-            except WebSocketDisconnect:
-                print("Frontend client disconnected inside loop")
-                if websocket.application_state != WebSocketState.DISCONNECTED:
-                    await websocket.send_json({"status": "Disconnected"})
-                connected_clients.remove(websocket)
-                break  # Exit the receive loop
-
-            except Exception as e:
-                print(f"Exception in websocket receive loop: {e}")
-                if websocket.application_state != WebSocketState.DISCONNECTED:
-                    await websocket.send_json({"status": "Disconnected"})
-                connected_clients.remove(websocket)
-                break  # Exit the receive loop
-
-    except Exception as e:
-        print(f"Outer exception in websocket endpoint: {e}")
-
+# Pydantic model to validate incoming report structure
+class ReportModel(BaseModel):
+    __root__: dict[str, Any]
 
 @app.get("/report")
 async def get_report():
-    current_time = datetime.datetime.utcnow().isoformat() + "Z"
-    sample_report = {
-        "call_id": "call_12345",
-        "agent_id": "agent_001",
-        "customer_id": "customer_789",
-        "start_time": current_time,
-        "end_time": current_time,
-        "category_reports": {
-            "introduction": {
-                "title": "Introduction & Setup",
-                "subcategories": {
-                    "greeting": {
-                        "title": "Executive Greeting & Context Setting",
-                        "entries": [
-                            {
-                                "timestamp": current_time,
-                                "value": "Yes",
-                                "reason": "Proper greeting and context provided.",
-                                "sentence": [
-                                    "Good morning, this is John from XYZ Corp."
-                                ],
-                                "score": 5,
-                                "nudges": "Greeting\nEnsure you introduce yourself clearly.\nSmile while talking."
-                            }
-                        ],
-                        "final_summary": {
-                            "value": "Yes",
-                            "reason": "Complete greeting done.",
-                            "sentence": [
-                                "Good morning, this is John from XYZ Corp."
-                            ],
-                            "total_score": 5,
-                            "nudges": "Final Greeting Tips\nMaintain politeness throughout the call."
-                        }
-                    }
-                },
-                "final_category_score": 5
-            }
-        },
-        "overall_summary": {
-            "total_score": 5,
-            "max_score": 5,
-            "percentage_score": "100%",
-            "remarks": "Excellent call performance."
-        }
-    }
+    if not report_store:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return JSONResponse(content=report_store)
 
-    return JSONResponse(content=sample_report)
+@app.post("/report")
+async def set_report(report: ReportModel):
+    report_store.clear()
+    report_store.update(report.__root__)
+    return {"message": "Report saved successfully"}
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
