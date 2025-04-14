@@ -27,45 +27,52 @@
     <div id="transcript">No transcript received yet...</div>
 
     <script>
-        // Create a WebSocket connection to the FastAPI WebSocket endpoint
-        const socket = new WebSocket("wss://everyday-estele-omkie-a4c50bad.koyeb.app/ws");
-        
-        const transcriptArea = document.getElementById("transcript");
-        let firstMessageReceived = false; // Flag to check if first message arrived
+    // Create a WebSocket connection to the FastAPI WebSocket endpoint
+    const socket = new WebSocket("wss://everyday-estele-omkie-a4c50bad.koyeb.app/ws");
     
-        // When a message is received from the WebSocket server
-        socket.onmessage = function(event) {
-            const message = event.data;
-            console.log("Message received from server:", message);
-    
-            if (!firstMessageReceived) {
-                transcriptArea.textContent = ""; // Clear the initial message
-                firstMessageReceived = true; // Mark that first message is received
-            }
-    
-            // Append the received transcript to the transcript area
-            transcriptArea.textContent += `\n${message}`;
-        };
-    
-        // WebSocket onopen event
-        socket.onopen = function() {
-            console.log("WebSocket connection established.");
-        };
-    
-        // WebSocket onclose event
-        socket.onclose = function(event) {
-            if (event.wasClean) {
-                console.log("Connection closed cleanly.");
-            } else {
-                console.error("Connection interrupted.");
-            }
-        };
-    
-        // WebSocket onerror event
-        socket.onerror = function(error) {
-            console.error("WebSocket error:", error);
-        };
-    </script>
+    const transcriptArea = document.getElementById("transcript");
+    let firstMessageReceived = false; // Flag to check if first message arrived
+
+    // When a message is received from the WebSocket server
+    socket.onmessage = function(event) {
+        const message = event.data;
+        console.log("Message received from server:", message);
+
+        if (!firstMessageReceived) {
+            transcriptArea.textContent = ""; // Clear the initial message
+            firstMessageReceived = true; // Mark that first message is received
+        }
+
+        // Append the received transcript to the transcript area
+        transcriptArea.textContent += `\n${message}`;
+    };
+
+    // WebSocket onopen event
+    socket.onopen = function() {
+        console.log("WebSocket connection established.");
+
+        // Set a timeout to close the connection after 10 seconds
+        setTimeout(function() {
+            console.log("Closing WebSocket after 10 seconds.");
+            socket.close(1000, "Client closed after 10 seconds");
+        }, 10000); // 10000 ms = 10 seconds
+    };
+
+    // WebSocket onclose event
+    socket.onclose = function(event) {
+        if (event.wasClean) {
+            console.log(`Connection closed cleanly. Code=${event.code} Reason=${event.reason}`);
+        } else {
+            console.error("Connection interrupted unexpectedly.");
+        }
+    };
+
+    // WebSocket onerror event
+    socket.onerror = function(error) {
+        console.error("WebSocket error:", error);
+    };
+</script>
+
     
 </body>
 </html>
