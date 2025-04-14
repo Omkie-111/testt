@@ -391,30 +391,40 @@ class ReportModel(RootModel[Dict[str, Any]]):
 class StatusModel(BaseModel):
     status: str
 
-# Report endpoints
+import os
+import json
+
+report_file = "report.json"
+status_file = "status.json"
+
 @app.get("/report")
 async def get_report():
-    if not report_store:
+    if not os.path.exists(report_file):
         raise HTTPException(status_code=404, detail="Report not found")
-    return JSONResponse(content=report_store)
+    with open(report_file, "r", encoding="utf-8") as f:
+        report = json.load(f)
+    return JSONResponse(content=report)
 
 @app.post("/report")
 async def set_report(report: ReportModel):
-    report_store.clear()
-    report_store.update(report.root)
+    with open(report_file, "w", encoding="utf-8") as f:
+        json.dump(report.root, f, ensure_ascii=False, indent=2)
     return {"message": "Report saved successfully"}
 
-# Status endpoints
 @app.get("/status")
 async def get_status():
-    if "status" not in status_store:
+    if not os.path.exists(status_file):
         raise HTTPException(status_code=404, detail="Status not found")
-    return JSONResponse(content=status_store)
+    with open(status_file, "r", encoding="utf-8") as f:
+        status = json.load(f)
+    return JSONResponse(content=status)
 
 @app.post("/status")
 async def set_status(status: StatusModel):
-    status_store["status"] = status.status
+    with open(status_file, "w", encoding="utf-8") as f:
+        json.dump({"status": status.status}, f, ensure_ascii=False, indent=2)
     return {"message": "Status updated successfully"}
+
 
 
 
