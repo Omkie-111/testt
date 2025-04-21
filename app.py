@@ -422,6 +422,24 @@ async def set_status(status: StatusModel):
     return {"message": "Status updated successfully"}
 
 
+class UserData(BaseModel):
+    full_name: str
+    status: str
+    duration: str
+    nudges_observed: int
+    nudges_declined: int
+    total_score: str
+
+@app.get("/manager-data", response_model=UserData)
+def get_user_info():
+    return UserData(
+        full_name="Babin Kumar",
+        status="Process",
+        duration="600s",
+        nudges_observed=12,
+        nudges_declined=34,
+        total_score="32/100"
+    )
 
 
 
