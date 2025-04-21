@@ -430,16 +430,28 @@ class UserData(BaseModel):
     nudges_declined: int
     total_score: str
 
-@app.get("/manager-data", response_model=UserData)
+# Static dataset
+users_data = [
+    UserData(full_name="Babin Kumar", status="Process", duration="600s", nudges_observed=12, nudges_declined=34, total_score="32/100"),
+    UserData(full_name="Priya Singh", status="Completed", duration="750s", nudges_observed=20, nudges_declined=15, total_score="75/100"),
+    UserData(full_name="Amit Verma", status="On Call", duration="420s", nudges_observed=10, nudges_declined=5, total_score="55/100"),
+    UserData(full_name="Sneha Roy", status="Completed", duration="900s", nudges_observed=18, nudges_declined=8, total_score="80/100"),
+    UserData(full_name="Rahul Sharma", status="Process", duration="360s", nudges_observed=7, nudges_declined=3, total_score="45/100"),
+    UserData(full_name="Meena Gupta", status="Idle", duration="0s", nudges_observed=0, nudges_declined=0, total_score="0/100"),
+    UserData(full_name="Ravi Patel", status="On Call", duration="1120s", nudges_observed=22, nudges_declined=12, total_score="72/100"),
+    UserData(full_name="Anjali Mehra", status="Completed", duration="810s", nudges_observed=25, nudges_declined=10, total_score="85/100"),
+    UserData(full_name="Vikram Yadav", status="Process", duration="560s", nudges_observed=9, nudges_declined=4, total_score="50/100"),
+    UserData(full_name="Kajal Pandey", status="Idle", duration="0s", nudges_observed=0, nudges_declined=0, total_score="0/100"),
+    UserData(full_name="Suresh Das", status="On Call", duration="670s", nudges_observed=15, nudges_declined=6, total_score="60/100"),
+    UserData(full_name="Neha Rani", status="Completed", duration="980s", nudges_observed=30, nudges_declined=9, total_score="90/100"),
+    UserData(full_name="Deepak Rana", status="Process", duration="730s", nudges_observed=13, nudges_declined=11, total_score="62/100"),
+    UserData(full_name="Divya Joshi", status="Completed", duration="845s", nudges_observed=21, nudges_declined=13, total_score="78/100"),
+    UserData(full_name="Nikhil Sinha", status="On Call", duration="610s", nudges_observed=16, nudges_declined=7, total_score="68/100")
+]
+
+@app.get("/manager-data", response_model=List[UserData])
 def get_user_info():
-    return UserData(
-        full_name="Babin Kumar",
-        status="Process",
-        duration="600s",
-        nudges_observed=12,
-        nudges_declined=34,
-        total_score="32/100"
-    )
+    return users_data
 
 
 
